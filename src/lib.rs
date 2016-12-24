@@ -8,6 +8,7 @@
 //! these timestamps.
 //!
 //! This crate provides two public functions:
+//!
 //! * `parse_http_date` to parse a HTTP datetime string to a system time
 //! * `fmt_http_date` to format a system time to a IMF-fixdate
 
@@ -62,6 +63,8 @@ pub fn parse_http_date(s: &str) -> Result<SystemTime, Error> {
 }
 
 /// Format a date to be used in a HTTP header field.
+///
+/// Dates are formatted as IMF-fixdate: `Fri, 15 May 2015 15:34:21 GMT`.
 pub fn fmt_http_date(d: SystemTime) -> String {
     format!("{}", DateTime::from(d))
 }
