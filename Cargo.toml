@@ -5,6 +5,9 @@ authors = ["Pyfisch <pyfisch@gmail.com>"]
 license = "MIT/Apache-2.0"
 description = "HTTP date parsing and formatting"
 keywords = ["http", "date", "time", "simple", "timestamp"]
+readme = "README.md"
+documentation = ""
+repository = "https://github.com/pyfisch/httpdate"
 
 [features]
 unstable = []
