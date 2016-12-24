@@ -2,6 +2,8 @@ use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use Error;
+
 #[derive(Debug)]
 pub struct DateTime {
     /// 0...59
@@ -22,7 +24,9 @@ pub struct DateTime {
 
 impl From<SystemTime> for DateTime {
     fn from(v: SystemTime) -> DateTime {
-        let secs_since_epoch = v.duration_since(UNIX_EPOCH).unwrap().as_secs();
+        let secs_since_epoch = v.duration_since(UNIX_EPOCH)
+            .expect("all times should be after the epoch")
+            .as_secs();
         let mut days = secs_since_epoch / 86400;
         let wday = ((days + 3) % 7) + 1;
         let secs_of_day = secs_since_epoch % 86400;
@@ -98,9 +102,9 @@ impl From<DateTime> for SystemTime {
 }
 
 impl FromStr for DateTime {
-    type Err = ();
+    type Err = Error;
 
-    fn from_str(s: &str) -> Result<DateTime, ()> {
+    fn from_str(s: &str) -> Result<DateTime, Error> {
         let s = s.trim();
         parse_imf_fixdate(s)
         .or_else(|_| parse_rfc850_date(s))
@@ -145,15 +149,15 @@ impl Display for DateTime {
     }
 }
 
-fn parse_imf_fixdate(s: &str) -> Result<DateTime, ()> {
+fn parse_imf_fixdate(s: &str) -> Result<DateTime, Error> {
     if s.len() != 29 || &s[25..] != " GMT" {
-        return Err(())
+        return Err(Error(()));
     }
     Ok(DateTime {
-        sec: try!(s[23..25].parse().map_err(|_| ())),
-        min: try!(s[20..22].parse().map_err(|_| ())),
-        hour: try!(s[17..19].parse().map_err(|_| ())),
-        day: try!(s[5..7].parse().map_err(|_| ())),
+        sec: try!(s[23..25].parse()),
+        min: try!(s[20..22].parse()),
+        hour: try!(s[17..19].parse()),
+        day: try!(s[5..7].parse()),
         mon: match &s[7..12] {
             " Jan " => 1,
             " Feb " => 2,
@@ -167,9 +171,9 @@ fn parse_imf_fixdate(s: &str) -> Result<DateTime, ()> {
             " Oct " => 10,
             " Nov " => 11,
             " Dec " => 12,
-            _ => return Err(()),
+            _ => return Err(Error(())),
         },
-        year: try!(s[12..16].parse().map_err(|_| ())),
+        year: try!(s[12..16].parse()),
         wday: match &s[..5] {
             "Mon, " => 1,
             "Tue, " => 2,
@@ -178,14 +182,14 @@ fn parse_imf_fixdate(s: &str) -> Result<DateTime, ()> {
             "Fri, " => 5,
             "Sat, " => 6,
             "Sun, " => 7,
-            _ => return Err(()),
+            _ => return Err(Error(())),
         },
     })
 }
 
-fn parse_rfc850_date(s: &str) -> Result<DateTime, ()> {
+fn parse_rfc850_date(s: &str) -> Result<DateTime, Error> {
     if !s.ends_with(" GMT") {
-        return Err(())
+        return Err(Error(()))
     }
     let (wday, s) = if s.starts_with("Monday, ") { (1, &s[8..]) }
         else if s.starts_with("Tuesday, ") { (2, &s[9..]) }
@@ -194,21 +198,21 @@ fn parse_rfc850_date(s: &str) -> Result<DateTime, ()> {
         else if s.starts_with("Friday, ") { (5, &s[8..]) }
         else if s.starts_with("Saturday, ") { (6, &s[10..]) }
         else if s.starts_with("Sunday, ") { (7, &s[8..]) }
-        else { return Err(()); };
+        else { return Err(Error(())); };
     if s.len() != 22 {
-        return Err(())
+        return Err(Error(()));
     }
-    let mut year = try!(s[7..9].parse::<u16>().map_err(|_| ()));
-    if year < 80 {
+    let mut year = try!(s[7..9].parse::<u16>());
+    if year < 70 {
         year += 2000;
     } else {
         year += 1900;
     }
     Ok(DateTime {
-        sec: try!(s[16..18].parse().map_err(|_| ())),
-        min: try!(s[13..15].parse().map_err(|_| ())),
-        hour: try!(s[10..12].parse().map_err(|_| ())),
-        day: try!(s[0..2].parse().map_err(|_| ())),
+        sec: try!(s[16..18].parse()),
+        min: try!(s[13..15].parse()),
+        hour: try!(s[10..12].parse()),
+        day: try!(s[0..2].parse()),
         mon: match &s[2..7] {
             "-Jan-" => 1,
             "-Feb-" => 2,
@@ -222,22 +226,22 @@ fn parse_rfc850_date(s: &str) -> Result<DateTime, ()> {
             "-Oct-" => 10,
             "-Nov-" => 11,
             "-Dec-" => 12,
-            _ => return Err(()),
+            _ => return Err(Error(())),
         },
         year: year,
         wday: wday,
     })
 }
 
-fn parse_asctime(s: &str) -> Result<DateTime, ()> {
+fn parse_asctime(s: &str) -> Result<DateTime, Error> {
     if s.len() != 24 {
-        return Err(())
+        return Err(Error(()));
     }
     Ok(DateTime {
-        sec: try!(s[17..19].parse().map_err(|_| ())),
-        min: try!(s[14..16].parse().map_err(|_| ())),
-        hour: try!(s[11..13].parse().map_err(|_| ())),
-        day: try!(s[8..10].trim_left().parse().map_err(|_| ())),
+        sec: try!(s[17..19].parse()),
+        min: try!(s[14..16].parse()),
+        hour: try!(s[11..13].parse()),
+        day: try!(s[8..10].trim_left().parse()),
         mon: match &s[4..8] {
             "Jan " => 1,
             "Feb " => 2,
@@ -251,9 +255,9 @@ fn parse_asctime(s: &str) -> Result<DateTime, ()> {
             "Oct " => 10,
             "Nov " => 11,
             "Dec " => 12,
-            _ => return Err(()),
+            _ => return Err(Error(())),
         },
-        year: try!(s[20..24].parse().map_err(|_| ())),
+        year: try!(s[20..24].parse()),
         wday: match &s[0..4] {
             "Mon " => 1,
             "Tue " => 2,
@@ -262,7 +266,7 @@ fn parse_asctime(s: &str) -> Result<DateTime, ()> {
             "Fri " => 5,
             "Sat " => 6,
             "Sun " => 7,
-            _ => return Err(()),
+            _ => return Err(Error(())),
         },
     })
 }

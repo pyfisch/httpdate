@@ -11,18 +11,53 @@
 //! * `parse_http_date` to parse a HTTP datetime string to a system time
 //! * `fmt_http_date` to format a system time to a IMF-fixdate
 
+use std::error;
+use std::fmt::{self, Display, Formatter};
+use std::io;
+use std::num::ParseIntError;
 use std::time::SystemTime;
 
 use datetime::DateTime;
 
 mod datetime;
 
+/// An opaque error type for all parsing errors.
+#[derive(Debug)]
+pub struct Error(());
+
+impl error::Error for Error {
+    fn description(&self) -> &str {
+        "string contains no or an invalid date"
+    }
+    fn cause(&self) -> Option<&error::Error> {
+        None
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
+        f.write_str(error::Error::description(self))
+    }
+}
+
+impl From<ParseIntError> for Error {
+    fn from(_: ParseIntError) -> Error {
+        Error(())
+    }
+}
+
+impl From<Error> for io::Error {
+    fn from(e: Error) -> io::Error {
+        io::Error::new(io::ErrorKind::Other, e)
+    }
+}
+
 /// Parse a date from an HTTP header field.
 ///
 /// Supports the preferred IMF-fixdate and the legacy RFC 805 and
 /// ascdate formats. Two digit years are mapped to dates between
-/// 1980 and 2079.
-pub fn parse_http_date(s: &str) -> Result<SystemTime, ()> {
+/// 1970 and 2069.
+pub fn parse_http_date(s: &str) -> Result<SystemTime, Error> {
     s.parse::<DateTime>().map(|d| d.into())
 }
 
