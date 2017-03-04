@@ -1,6 +1,7 @@
 # Date and time utils for HTTP.
 
 [![Build Status](https://travis-ci.org/pyfisch/httpdate.svg?branch=master)](https://travis-ci.org/pyfisch/httpdate)
+[![Crates.io](https://img.shields.io/crates/v/httpdate.svg)](https://crates.io/crates/httpdate)
 [Documentation](https://pyfisch.github.io/httpdate/httpdate/index.html)
 
 Multiple HTTP header fields store timestamps.
@@ -17,3 +18,5 @@ This crate provides two public functions:
 
 Read the [blog post](https://pyfisch.org/blog/http-datetime-handling/) to learn
 more.
+
+Version 0.2.1 was fuzzed using [libFuzzer](https://github.com/rust-fuzz/cargo-fuzz).

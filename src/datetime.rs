@@ -25,12 +25,9 @@ pub struct DateTime {
 
 impl DateTime {
     fn is_valid(&self) -> bool {
-        self.sec < 60
-        && self.min < 60
-        && self.hour < 24
-        && self.day > 0 && self.day < 32
-        && self.mon > 0 && self.mon <= 12
-        && self.year >= 1970 && self.year <= 9999
+        self.sec < 60 && self.min < 60 && self.hour < 24 && self.day > 0 &&
+        self.day < 32 && self.mon > 0 && self.mon <= 12 && self.year >= 1970 &&
+        self.year <= 9999
     }
 }
 
@@ -84,9 +81,8 @@ impl From<SystemTime> for DateTime {
 
 impl From<DateTime> for SystemTime {
     fn from(v: DateTime) -> SystemTime {
-        let leap_years = ((v.year - 1) - 1968) / 4
-            - ((v.year - 1) - 1900) / 100
-            + ((v.year - 1) - 1600) / 400;
+        let leap_years = ((v.year - 1) - 1968) / 4 - ((v.year - 1) - 1900) / 100 +
+                         ((v.year - 1) - 1600) / 400;
         let mut ydays = match v.mon {
             1 => 0,
             2 => 31,
@@ -106,10 +102,8 @@ impl From<DateTime> for SystemTime {
             ydays += 1;
         }
         let days = (v.year as u64 - 1970) * 365 + leap_years as u64 + ydays;
-        UNIX_EPOCH + Duration::from_secs(v.sec as u64
-            + v.min as u64 * 60
-            + v.hour as u64 * 3600
-            + days * 86400)
+        UNIX_EPOCH +
+        Duration::from_secs(v.sec as u64 + v.min as u64 * 60 + v.hour as u64 * 3600 + days * 86400)
     }
 }
 
@@ -118,12 +112,12 @@ impl FromStr for DateTime {
 
     fn from_str(s: &str) -> Result<DateTime, Error> {
         if !s.is_ascii() {
-            return Err(Error(()))
+            return Err(Error(()));
         }
         let x = s.trim().as_bytes();
         let date = parse_imf_fixdate(x)
-        .or_else(|_| parse_rfc850_date(x))
-        .or_else(|_| parse_asctime(x))?;
+            .or_else(|_| parse_rfc850_date(x))
+            .or_else(|_| parse_asctime(x))?;
         if !date.is_valid() {
             return Err(Error(()));
         }
@@ -173,15 +167,12 @@ impl Display for DateTime {
 /// For internal use only.
 /// Intended to be used with ASCII-only strings.
 fn conv(s: &[u8]) -> &str {
-    unsafe {
-        from_utf8_unchecked(s)
-    }
+    unsafe { from_utf8_unchecked(s) }
 }
 
 fn parse_imf_fixdate(s: &[u8]) -> Result<DateTime, Error> {
     // Example: `Sun, 06 Nov 1994 08:49:37 GMT`
-    if s.len() != 29 || &s[25..] != b" GMT"
-    || s[16] != b' ' || s[19] != b':'  || s[22] != b':' {
+    if s.len() != 29 || &s[25..] != b" GMT" || s[16] != b' ' || s[19] != b':' || s[22] != b':' {
         return Err(Error(()));
     }
     Ok(DateTime {
@@ -238,7 +229,7 @@ fn parse_rfc850_date(s: &[u8]) -> Result<DateTime, Error> {
         .or_else(|| wday(s, 6, b"Saturday, "))
         .or_else(|| wday(s, 7, b"Sunday, "))
         .ok_or(Error(()))?;
-    if s.len() != 22 ||s[12] != b':' || s[15] != b':' || &s[18..22] != b" GMT" {
+    if s.len() != 22 || s[12] != b':' || s[15] != b':' || &s[18..22] != b" GMT" {
         return Err(Error(()));
     }
     let mut year = conv(&s[7..9]).parse::<u16>()?;
@@ -274,9 +265,7 @@ fn parse_rfc850_date(s: &[u8]) -> Result<DateTime, Error> {
 
 fn parse_asctime(s: &[u8]) -> Result<DateTime, Error> {
     // Example: `Sun Nov  6 08:49:37 1994`
-    if s.len() != 24 || s[10] != b' '
-    || s[13] != b':' || s[16] != b':'
-    || s[19] != b' ' {
+    if s.len() != 24 || s[10] != b' ' || s[13] != b':' || s[16] != b':' || s[19] != b' ' {
         return Err(Error(()));
     }
     Ok(DateTime {
@@ -285,7 +274,12 @@ fn parse_asctime(s: &[u8]) -> Result<DateTime, Error> {
         hour: conv(&s[11..13]).parse()?,
         day: {
             let x = &s[8..10];
-            conv(if x[0] == b' ' { &x[1..2] } else { x }).parse()?
+            conv(if x[0] == b' ' {
+                    &x[1..2]
+                } else {
+                    x
+                })
+                .parse()?
         },
         mon: match &s[4..8] {
             b"Jan " => 1,
