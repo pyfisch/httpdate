@@ -1,5 +1,6 @@
+use std::ascii::AsciiExt;
 use std::fmt::{self, Display, Formatter};
-use std::str::FromStr;
+use std::str::{FromStr, from_utf8_unchecked};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use Error;
@@ -16,10 +17,21 @@ pub struct DateTime {
     day: u8,
     /// 1...12
     mon: u8,
-    /// 1000...9999
+    /// 1970...9999
     year: u16,
     /// 1...7
     wday: u8,
+}
+
+impl DateTime {
+    fn is_valid(&self) -> bool {
+        self.sec < 60
+        && self.min < 60
+        && self.hour < 24
+        && self.day > 0 && self.day < 32
+        && self.mon > 0 && self.mon <= 12
+        && self.year >= 1970 && self.year <= 9999
+    }
 }
 
 impl From<SystemTime> for DateTime {
@@ -105,10 +117,17 @@ impl FromStr for DateTime {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<DateTime, Error> {
-        let s = s.trim();
-        parse_imf_fixdate(s)
-        .or_else(|_| parse_rfc850_date(s))
-        .or_else(|_| parse_asctime(s))
+        if !s.is_ascii() {
+            return Err(Error(()))
+        }
+        let x = s.trim().as_bytes();
+        let date = parse_imf_fixdate(x)
+        .or_else(|_| parse_rfc850_date(x))
+        .or_else(|_| parse_asctime(x))?;
+        if !date.is_valid() {
+            return Err(Error(()));
+        }
+        Ok(date)
     }
 }
 
@@ -149,83 +168,103 @@ impl Display for DateTime {
     }
 }
 
-fn parse_imf_fixdate(s: &str) -> Result<DateTime, Error> {
-    if s.len() != 29 || &s[25..] != " GMT" {
+/// Convert &[u8] to &str with zero checks.
+///
+/// For internal use only.
+/// Intended to be used with ASCII-only strings.
+fn conv(s: &[u8]) -> &str {
+    unsafe {
+        from_utf8_unchecked(s)
+    }
+}
+
+fn parse_imf_fixdate(s: &[u8]) -> Result<DateTime, Error> {
+    // Example: `Sun, 06 Nov 1994 08:49:37 GMT`
+    if s.len() != 29 || &s[25..] != b" GMT"
+    || s[16] != b' ' || s[19] != b':'  || s[22] != b':' {
         return Err(Error(()));
     }
     Ok(DateTime {
-        sec: try!(s[23..25].parse()),
-        min: try!(s[20..22].parse()),
-        hour: try!(s[17..19].parse()),
-        day: try!(s[5..7].parse()),
+        sec: conv(&s[23..25]).parse()?,
+        min: conv(&s[20..22]).parse()?,
+        hour: conv(&s[17..19]).parse()?,
+        day: conv(&s[5..7]).parse()?,
         mon: match &s[7..12] {
-            " Jan " => 1,
-            " Feb " => 2,
-            " Mar " => 3,
-            " Apr " => 4,
-            " Mai " => 5,
-            " Jun " => 6,
-            " Jul " => 7,
-            " Aug " => 8,
-            " Sep " => 9,
-            " Oct " => 10,
-            " Nov " => 11,
-            " Dec " => 12,
+            b" Jan " => 1,
+            b" Feb " => 2,
+            b" Mar " => 3,
+            b" Apr " => 4,
+            b" Mai " => 5,
+            b" Jun " => 6,
+            b" Jul " => 7,
+            b" Aug " => 8,
+            b" Sep " => 9,
+            b" Oct " => 10,
+            b" Nov " => 11,
+            b" Dec " => 12,
             _ => return Err(Error(())),
         },
-        year: try!(s[12..16].parse()),
+        year: conv(&s[12..16]).parse()?,
         wday: match &s[..5] {
-            "Mon, " => 1,
-            "Tue, " => 2,
-            "Wed, " => 3,
-            "Thu, " => 4,
-            "Fri, " => 5,
-            "Sat, " => 6,
-            "Sun, " => 7,
+            b"Mon, " => 1,
+            b"Tue, " => 2,
+            b"Wed, " => 3,
+            b"Thu, " => 4,
+            b"Fri, " => 5,
+            b"Sat, " => 6,
+            b"Sun, " => 7,
             _ => return Err(Error(())),
         },
     })
 }
 
-fn parse_rfc850_date(s: &str) -> Result<DateTime, Error> {
-    if !s.ends_with(" GMT") {
-        return Err(Error(()))
-    }
-    let (wday, s) = if s.starts_with("Monday, ") { (1, &s[8..]) }
-        else if s.starts_with("Tuesday, ") { (2, &s[9..]) }
-        else if s.starts_with("Wednesday, ") { (3, &s[11..]) }
-        else if s.starts_with("Thursday, ") { (4, &s[10..]) }
-        else if s.starts_with("Friday, ") { (5, &s[8..]) }
-        else if s.starts_with("Saturday, ") { (6, &s[10..]) }
-        else if s.starts_with("Sunday, ") { (7, &s[8..]) }
-        else { return Err(Error(())); };
-    if s.len() != 22 {
+fn parse_rfc850_date(s: &[u8]) -> Result<DateTime, Error> {
+    // Example: `Sunday, 06-Nov-94 08:49:37 GMT`
+    if s.len() < 23 {
         return Err(Error(()));
     }
-    let mut year = try!(s[7..9].parse::<u16>());
+
+    fn wday<'a>(s: &'a [u8], wday: u8, name: &'static [u8]) -> Option<(u8, &'a [u8])> {
+        if &s[0..name.len()] == name {
+            return Some((wday, &s[name.len()..]));
+        }
+        None
+    }
+    let (wday, s) = wday(s, 1, b"Monday, ")
+        .or_else(|| wday(s, 2, b"Tuesday, "))
+        .or_else(|| wday(s, 3, b"Wednesday, "))
+        .or_else(|| wday(s, 4, b"Thursday, "))
+        .or_else(|| wday(s, 5, b"Friday, "))
+        .or_else(|| wday(s, 6, b"Saturday, "))
+        .or_else(|| wday(s, 7, b"Sunday, "))
+        .ok_or(Error(()))?;
+    if s.len() != 22 ||s[12] != b':' || s[15] != b':' || &s[18..22] != b" GMT" {
+        return Err(Error(()));
+    }
+    let mut year = conv(&s[7..9]).parse::<u16>()?;
     if year < 70 {
         year += 2000;
     } else {
         year += 1900;
     }
     Ok(DateTime {
-        sec: try!(s[16..18].parse()),
-        min: try!(s[13..15].parse()),
-        hour: try!(s[10..12].parse()),
-        day: try!(s[0..2].parse()),
+        sec: conv(&s[16..18]).parse()?,
+        min: conv(&s[13..15]).parse()?,
+        hour: conv(&s[10..12]).parse()?,
+        day: conv(&s[0..2]).parse()?,
         mon: match &s[2..7] {
-            "-Jan-" => 1,
-            "-Feb-" => 2,
-            "-Mar-" => 3,
-            "-Apr-" => 4,
-            "-Mai-" => 5,
-            "-Jun-" => 6,
-            "-Jul-" => 7,
-            "-Aug-" => 8,
-            "-Sep-" => 9,
-            "-Oct-" => 10,
-            "-Nov-" => 11,
-            "-Dec-" => 12,
+            b"-Jan-" => 1,
+            b"-Feb-" => 2,
+            b"-Mar-" => 3,
+            b"-Apr-" => 4,
+            b"-Mai-" => 5,
+            b"-Jun-" => 6,
+            b"-Jul-" => 7,
+            b"-Aug-" => 8,
+            b"-Sep-" => 9,
+            b"-Oct-" => 10,
+            b"-Nov-" => 11,
+            b"-Dec-" => 12,
             _ => return Err(Error(())),
         },
         year: year,
@@ -233,39 +272,45 @@ fn parse_rfc850_date(s: &str) -> Result<DateTime, Error> {
     })
 }
 
-fn parse_asctime(s: &str) -> Result<DateTime, Error> {
-    if s.len() != 24 {
+fn parse_asctime(s: &[u8]) -> Result<DateTime, Error> {
+    // Example: `Sun Nov  6 08:49:37 1994`
+    if s.len() != 24 || s[10] != b' '
+    || s[13] != b':' || s[16] != b':'
+    || s[19] != b' ' {
         return Err(Error(()));
     }
     Ok(DateTime {
-        sec: try!(s[17..19].parse()),
-        min: try!(s[14..16].parse()),
-        hour: try!(s[11..13].parse()),
-        day: try!(s[8..10].trim_left().parse()),
+        sec: conv(&s[17..19]).parse()?,
+        min: conv(&s[14..16]).parse()?,
+        hour: conv(&s[11..13]).parse()?,
+        day: {
+            let x = &s[8..10];
+            conv(if x[0] == b' ' { &x[1..2] } else { x }).parse()?
+        },
         mon: match &s[4..8] {
-            "Jan " => 1,
-            "Feb " => 2,
-            "Mar " => 3,
-            "Apr " => 4,
-            "Mai " => 5,
-            "Jun " => 6,
-            "Jul " => 7,
-            "Aug " => 8,
-            "Sep " => 9,
-            "Oct " => 10,
-            "Nov " => 11,
-            "Dec " => 12,
+            b"Jan " => 1,
+            b"Feb " => 2,
+            b"Mar " => 3,
+            b"Apr " => 4,
+            b"Mai " => 5,
+            b"Jun " => 6,
+            b"Jul " => 7,
+            b"Aug " => 8,
+            b"Sep " => 9,
+            b"Oct " => 10,
+            b"Nov " => 11,
+            b"Dec " => 12,
             _ => return Err(Error(())),
         },
-        year: try!(s[20..24].parse()),
+        year: conv(&s[20..24]).parse()?,
         wday: match &s[0..4] {
-            "Mon " => 1,
-            "Tue " => 2,
-            "Wed " => 3,
-            "Thu " => 4,
-            "Fri " => 5,
-            "Sat " => 6,
-            "Sun " => 7,
+            b"Mon " => 1,
+            b"Tue " => 2,
+            b"Wed " => 3,
+            b"Thu " => 4,
+            b"Fri " => 5,
+            b"Sat " => 6,
+            b"Sun " => 7,
             _ => return Err(Error(())),
         },
     })
