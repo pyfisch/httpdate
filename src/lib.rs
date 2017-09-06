@@ -11,6 +11,11 @@
 //!
 //! * `parse_http_date` to parse a HTTP datetime string to a system time
 //! * `fmt_http_date` to format a system time to a IMF-fixdate
+//!
+//! In addition it exposes the `HttpDate` type that can be used to parse
+//! and format timestamps. Convert a sytem time to `HttpDate` and vice versa.
+//! The `HttpType` (8 bytes) is smaller than `SystemTime` (16 bytes) and
+//! using the display impl avoids a temporary allocation.
 
 use std::error;
 use std::fmt::{self, Display, Formatter};
@@ -18,9 +23,9 @@ use std::io;
 use std::num::ParseIntError;
 use std::time::SystemTime;
 
-use datetime::DateTime;
+pub use httpdate::HttpDate;
 
-mod datetime;
+mod httpdate;
 
 /// An opaque error type for all parsing errors.
 #[derive(Debug)]
@@ -59,14 +64,14 @@ impl From<Error> for io::Error {
 /// ascdate formats. Two digit years are mapped to dates between
 /// 1970 and 2069.
 pub fn parse_http_date(s: &str) -> Result<SystemTime, Error> {
-    s.parse::<DateTime>().map(|d| d.into())
+    s.parse::<HttpDate>().map(|d| d.into())
 }
 
 /// Format a date to be used in a HTTP header field.
 ///
 /// Dates are formatted as IMF-fixdate: `Fri, 15 May 2015 15:34:21 GMT`.
 pub fn fmt_http_date(d: SystemTime) -> String {
-    format!("{}", DateTime::from(d))
+    format!("{}", HttpDate::from(d))
 }
 
 #[cfg(test)]
@@ -74,7 +79,7 @@ mod tests {
     use std::str;
     use std::time::{Duration, UNIX_EPOCH};
 
-    use super::{parse_http_date, fmt_http_date};
+    use super::{HttpDate, parse_http_date, fmt_http_date};
 
     #[test]
     fn test_rfc_example() {
@@ -126,6 +131,7 @@ mod tests {
         assert_eq!(fmt_http_date(d), "Sun, 02 Oct 2016 14:44:11 GMT");
     }
 
+    #[allow(dead_code)]
     fn testcase(data: &[u8]) {
         if let Ok(s) = str::from_utf8(data) {
             println!("{:?}", s);
@@ -134,5 +140,10 @@ mod tests {
                 assert!(!o.is_empty());
             }
         }
+    }
+
+    #[test]
+    fn size_of() {
+        assert_eq!(::std::mem::size_of::<HttpDate>(), 8);
     }
 }

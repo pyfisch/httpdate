@@ -1,12 +1,19 @@
 use std::ascii::AsciiExt;
 use std::fmt::{self, Display, Formatter};
+use std::cmp;
 use std::str::{FromStr, from_utf8_unchecked};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use Error;
 
-#[derive(Debug)]
-pub struct DateTime {
+/// HTTP timestamp type.
+///
+/// Parse using `FromStr` impl.
+/// Format using the `Display` trait.
+/// Convert timestamp into/from `SytemTime` to use.
+/// Supports comparsion and sorting.
+#[derive(Copy, Clone, Debug, Eq, Ord)]
+pub struct HttpDate {
     /// 0...59
     sec: u8,
     /// 0...59
@@ -23,7 +30,7 @@ pub struct DateTime {
     wday: u8,
 }
 
-impl DateTime {
+impl HttpDate {
     fn is_valid(&self) -> bool {
         self.sec < 60 && self.min < 60 && self.hour < 24 && self.day > 0 &&
         self.day < 32 && self.mon > 0 && self.mon <= 12 && self.year >= 1970 &&
@@ -31,8 +38,8 @@ impl DateTime {
     }
 }
 
-impl From<SystemTime> for DateTime {
-    fn from(v: SystemTime) -> DateTime {
+impl From<SystemTime> for HttpDate {
+    fn from(v: SystemTime) -> HttpDate {
         let secs_since_epoch = v.duration_since(UNIX_EPOCH)
             .expect("all times should be after the epoch")
             .as_secs();
@@ -67,7 +74,7 @@ impl From<SystemTime> for DateTime {
         }
         let mday = days + 1;
 
-        DateTime {
+        HttpDate {
             sec: (secs_of_day % 60) as u8,
             min: ((secs_of_day % 3600) / 60) as u8,
             hour: (secs_of_day / 3600) as u8,
@@ -79,8 +86,8 @@ impl From<SystemTime> for DateTime {
     }
 }
 
-impl From<DateTime> for SystemTime {
-    fn from(v: DateTime) -> SystemTime {
+impl From<HttpDate> for SystemTime {
+    fn from(v: HttpDate) -> SystemTime {
         let leap_years = ((v.year - 1) - 1968) / 4 - ((v.year - 1) - 1900) / 100 +
                          ((v.year - 1) - 1600) / 400;
         let mut ydays = match v.mon {
@@ -107,10 +114,10 @@ impl From<DateTime> for SystemTime {
     }
 }
 
-impl FromStr for DateTime {
+impl FromStr for HttpDate {
     type Err = Error;
 
-    fn from_str(s: &str) -> Result<DateTime, Error> {
+    fn from_str(s: &str) -> Result<HttpDate, Error> {
         if !s.is_ascii() {
             return Err(Error(()));
         }
@@ -125,7 +132,7 @@ impl FromStr for DateTime {
     }
 }
 
-impl Display for DateTime {
+impl Display for HttpDate {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{wday}, {day:02} {mon} {year} {hour:02}:{min:02}:{sec:02} GMT",
             sec=self.sec,
@@ -162,6 +169,18 @@ impl Display for DateTime {
     }
 }
 
+impl PartialEq for HttpDate {
+    fn eq(&self, other: &HttpDate) -> bool {
+        SystemTime::from(*self) == SystemTime::from(*other)
+    }
+}
+
+impl PartialOrd for HttpDate {
+    fn partial_cmp(&self, other: &HttpDate) -> Option<cmp::Ordering> {
+        SystemTime::from(*self).partial_cmp(&SystemTime::from(*other))
+    }
+}
+
 /// Convert &[u8] to &str with zero checks.
 ///
 /// For internal use only.
@@ -170,12 +189,12 @@ fn conv(s: &[u8]) -> &str {
     unsafe { from_utf8_unchecked(s) }
 }
 
-fn parse_imf_fixdate(s: &[u8]) -> Result<DateTime, Error> {
+fn parse_imf_fixdate(s: &[u8]) -> Result<HttpDate, Error> {
     // Example: `Sun, 06 Nov 1994 08:49:37 GMT`
     if s.len() != 29 || &s[25..] != b" GMT" || s[16] != b' ' || s[19] != b':' || s[22] != b':' {
         return Err(Error(()));
     }
-    Ok(DateTime {
+    Ok(HttpDate {
         sec: conv(&s[23..25]).parse()?,
         min: conv(&s[20..22]).parse()?,
         hour: conv(&s[17..19]).parse()?,
@@ -209,7 +228,7 @@ fn parse_imf_fixdate(s: &[u8]) -> Result<DateTime, Error> {
     })
 }
 
-fn parse_rfc850_date(s: &[u8]) -> Result<DateTime, Error> {
+fn parse_rfc850_date(s: &[u8]) -> Result<HttpDate, Error> {
     // Example: `Sunday, 06-Nov-94 08:49:37 GMT`
     if s.len() < 23 {
         return Err(Error(()));
@@ -238,7 +257,7 @@ fn parse_rfc850_date(s: &[u8]) -> Result<DateTime, Error> {
     } else {
         year += 1900;
     }
-    Ok(DateTime {
+    Ok(HttpDate {
         sec: conv(&s[16..18]).parse()?,
         min: conv(&s[13..15]).parse()?,
         hour: conv(&s[10..12]).parse()?,
@@ -263,12 +282,12 @@ fn parse_rfc850_date(s: &[u8]) -> Result<DateTime, Error> {
     })
 }
 
-fn parse_asctime(s: &[u8]) -> Result<DateTime, Error> {
+fn parse_asctime(s: &[u8]) -> Result<HttpDate, Error> {
     // Example: `Sun Nov  6 08:49:37 1994`
     if s.len() != 24 || s[10] != b' ' || s[13] != b':' || s[16] != b':' || s[19] != b' ' {
         return Err(Error(()));
     }
-    Ok(DateTime {
+    Ok(HttpDate {
         sec: conv(&s[17..19]).parse()?,
         min: conv(&s[14..16]).parse()?,
         hour: conv(&s[11..13]).parse()?,
