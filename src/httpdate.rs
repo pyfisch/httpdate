@@ -40,39 +40,67 @@ impl HttpDate {
 
 impl From<SystemTime> for HttpDate {
     fn from(v: SystemTime) -> HttpDate {
-        let secs_since_epoch = v.duration_since(UNIX_EPOCH)
-            .expect("all times should be after the epoch")
-            .as_secs();
-        let mut days = secs_since_epoch / 86400;
-        let wday = ((days + 3) % 7) + 1;
+        let dur = v.duration_since(UNIX_EPOCH)
+            .expect("all times should be after the epoch");
+        let secs_since_epoch = dur.as_secs();
+
+        if secs_since_epoch >= 253402300800 { // year 9999
+            panic!("date must be before year 9999");
+        }
+
+        /* 2000-03-01 (mod 400 year, immediately after feb29 */
+        const LEAPOCH: i64 = 11017;
+        const DAYS_PER_400Y: i64 = 365*400 + 97;
+        const DAYS_PER_100Y: i64 = 365*100 + 24;
+        const DAYS_PER_4Y: i64 = 365*4 + 1;
+
+        let days = (secs_since_epoch / 86400) as i64 - LEAPOCH;
         let secs_of_day = secs_since_epoch % 86400;
-        let mut year = 1970;
-        loop {
-            let ydays = if is_leap_year(year) {
-                366
-            } else {
-                365
-            };
-            if days >= ydays {
-                days -= ydays;
-                year += 1;
-            } else {
-                break;
-            }
+
+        let mut qc_cycles = days / DAYS_PER_400Y;
+        let mut remdays = days % DAYS_PER_400Y;
+
+        if remdays < 0 {
+            remdays += DAYS_PER_400Y;
+            qc_cycles -= 1;
         }
-        let mut months = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-        if is_leap_year(year) {
-            months[1] += 1;
-        }
+
+        let mut c_cycles = remdays / DAYS_PER_100Y;
+        if c_cycles == 4 { c_cycles -= 1; }
+        remdays -= c_cycles * DAYS_PER_100Y;
+
+        let mut q_cycles = remdays / DAYS_PER_4Y;
+        if q_cycles == 25 { q_cycles -= 1; }
+        remdays -= q_cycles * DAYS_PER_4Y;
+
+        let mut remyears = remdays / 365;
+        if remyears == 4 { remyears -= 1; }
+        remdays -= remyears * 365;
+
+        let mut year = 2000 +
+            remyears + 4*q_cycles + 100*c_cycles + 400*qc_cycles;
+
+        let months = [31,30,31,30,31,31,30,31,30,31,31,29];
         let mut mon = 0;
         for mon_len in months.iter() {
             mon += 1;
-            if days < *mon_len {
+            if remdays < *mon_len {
                 break;
             }
-            days -= *mon_len;
+            remdays -= *mon_len;
         }
-        let mday = days + 1;
+        let mday = remdays+1;
+        let mon = if mon + 2 > 12 {
+            year += 1;
+            mon - 10
+        } else {
+            mon + 2
+        };
+
+        let mut wday = (3+days)%7;
+        if wday <= 0 {
+            wday += 7
+        };
 
         HttpDate {
             sec: (secs_of_day % 60) as u8,
@@ -80,7 +108,7 @@ impl From<SystemTime> for HttpDate {
             hour: (secs_of_day / 3600) as u8,
             day: mday as u8,
             mon: mon as u8,
-            year: year,
+            year: year as u16,
             wday: wday as u8,
         }
     }
