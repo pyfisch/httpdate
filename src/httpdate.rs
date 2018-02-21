@@ -162,38 +162,58 @@ impl FromStr for HttpDate {
 
 impl Display for HttpDate {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{wday}, {day:02} {mon} {year} {hour:02}:{min:02}:{sec:02} GMT",
-            sec=self.sec,
-            min=self.min,
-            hour=self.hour,
-            day=self.day,
-            mon=match self.mon {
-                1 => "Jan",
-                2 => "Feb",
-                3 => "Mar",
-                4 => "Apr",
-                5 => "Mai",
-                6 => "Jun",
-                7 => "Jul",
-                8 => "Aug",
-                9 => "Sep",
-                10 => "Oct",
-                11 => "Nov",
-                12 => "Dec",
-                _ => unreachable!(),
-            },
-            year=self.year,
-            wday=match self.wday {
-                1 => "Mon",
-                2 => "Tue",
-                3 => "Wed",
-                4 => "Thu",
-                5 => "Fri",
-                6 => "Sat",
-                7 => "Sun",
-                _ => unreachable!(),
-            },
-        )
+        let wday = match self.wday {
+            1 => b"Mon",
+            2 => b"Tue",
+            3 => b"Wed",
+            4 => b"Thu",
+            5 => b"Fri",
+            6 => b"Sat",
+            7 => b"Sun",
+            _ => unreachable!(),
+        };
+        let mon = match self.mon {
+            1 => b"Jan",
+            2 => b"Feb",
+            3 => b"Mar",
+            4 => b"Apr",
+            5 => b"Mai",
+            6 => b"Jun",
+            7 => b"Jul",
+            8 => b"Aug",
+            9 => b"Sep",
+            10 => b"Oct",
+            11 => b"Nov",
+            12 => b"Dec",
+            _ => unreachable!(),
+        };
+        let mut buf: [u8; 29] = [
+            // Too long to write as: b"Thu, 01 Jan 1970 00:00:00 GMT"
+            b' ', b' ', b' ', b',', b' ',
+            b'0', b'0', b' ', b' ', b' ', b' ', b' ',
+            b'0', b'0', b'0', b'0', b' ',
+            b'0', b'0', b':', b'0', b'0', b':', b'0', b'0',
+            b' ', b'G', b'M', b'T',
+        ];
+        buf[0] = wday[0];
+        buf[1] = wday[1];
+        buf[2] = wday[2];
+        buf[5] = b'0' + (self.day / 10) as u8;
+        buf[6] = b'0' + (self.day % 10) as u8;
+        buf[8] = mon[0];
+        buf[9] = mon[1];
+        buf[10] = mon[2];
+        buf[12] = b'0' + (self.year / 1000) as u8;
+        buf[13] = b'0' + (self.year / 100 % 10) as u8;
+        buf[14] = b'0' + (self.year / 10 % 10) as u8;
+        buf[15] = b'0' + (self.year % 10) as u8;
+        buf[17] = b'0' + (self.hour / 10) as u8;
+        buf[18] = b'0' + (self.hour % 10) as u8;
+        buf[20] = b'0' + (self.min / 10) as u8;
+        buf[21] = b'0' + (self.min % 10) as u8;
+        buf[23] = b'0' + (self.sec / 10) as u8;
+        buf[24] = b'0' + (self.sec % 10) as u8;
+        f.write_str(unsafe { from_utf8_unchecked(&buf[..]) })
     }
 }
 
