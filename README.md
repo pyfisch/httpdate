@@ -19,4 +19,4 @@ This crate provides two public functions:
 Read the [blog post](https://pyfisch.org/blog/http-datetime-handling/) to learn
 more.
 
-Version 0.2.1 was fuzzed using [libFuzzer](https://github.com/rust-fuzz/cargo-fuzz).
+Fuzz it by installing *cargo-fuzz* and running `cargo fuzz run fuzz_target_1`.
