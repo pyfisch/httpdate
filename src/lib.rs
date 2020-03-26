@@ -79,23 +79,29 @@ mod tests {
     use std::str;
     use std::time::{Duration, UNIX_EPOCH};
 
-    use super::{HttpDate, parse_http_date, fmt_http_date};
+    use super::{fmt_http_date, parse_http_date, HttpDate};
 
     #[test]
     fn test_rfc_example() {
         let d = UNIX_EPOCH + Duration::from_secs(784111777);
-        assert_eq!(d,
-                   parse_http_date("Sun, 06 Nov 1994 08:49:37 GMT").expect("#1"));
-        assert_eq!(d,
-                   parse_http_date("Sunday, 06-Nov-94 08:49:37 GMT").expect("#2"));
+        assert_eq!(
+            d,
+            parse_http_date("Sun, 06 Nov 1994 08:49:37 GMT").expect("#1")
+        );
+        assert_eq!(
+            d,
+            parse_http_date("Sunday, 06-Nov-94 08:49:37 GMT").expect("#2")
+        );
         assert_eq!(d, parse_http_date("Sun Nov  6 08:49:37 1994").expect("#3"));
     }
 
     #[test]
     fn test2() {
         let d = UNIX_EPOCH + Duration::from_secs(1475419451);
-        assert_eq!(d,
-                   parse_http_date("Sun, 02 Oct 2016 14:44:11 GMT").expect("#1"));
+        assert_eq!(
+            d,
+            parse_http_date("Sun, 02 Oct 2016 14:44:11 GMT").expect("#1")
+        );
         assert!(parse_http_date("Sun Nov 10 08:00:00 1000").is_err());
         assert!(parse_http_date("Sun Nov 10 08*00:00 2000").is_err());
         assert!(parse_http_date("Sunday, 06-Nov-94 08+49:37 GMT").is_err());
