@@ -13,7 +13,7 @@ use Error;
 /// Format using the `Display` trait.
 /// Convert timestamp into/from `SytemTime` to use.
 /// Supports comparsion and sorting.
-#[derive(Copy, Clone, Debug, Eq, Ord)]
+#[derive(Copy, Clone, Debug, Eq, Ord, Hash)]
 pub struct HttpDate {
     /// 0...59
     sec: u8,
