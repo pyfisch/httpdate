@@ -1,6 +1,6 @@
-use std::fmt::{self, Display, Formatter};
 use std::cmp;
-use std::str::{FromStr, from_utf8_unchecked};
+use std::fmt::{self, Display, Formatter};
+use std::str::{from_utf8_unchecked, FromStr};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::Error;
@@ -11,7 +11,7 @@ use crate::Error;
 /// Format using the `Display` trait.
 /// Convert timestamp into/from `SytemTime` to use.
 /// Supports comparsion and sorting.
-#[derive(Copy, Clone, Debug, Eq, Ord, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct HttpDate {
     /// 0...59
     sec: u8,
@@ -31,27 +31,35 @@ pub struct HttpDate {
 
 impl HttpDate {
     fn is_valid(&self) -> bool {
-        self.sec < 60 && self.min < 60 && self.hour < 24 && self.day > 0 &&
-        self.day < 32 && self.mon > 0 && self.mon <= 12 && self.year >= 1970 &&
-        self.year <= 9999
+        self.sec < 60
+            && self.min < 60
+            && self.hour < 24
+            && self.day > 0
+            && self.day < 32
+            && self.mon > 0
+            && self.mon <= 12
+            && self.year >= 1970
+            && self.year <= 9999
     }
 }
 
 impl From<SystemTime> for HttpDate {
     fn from(v: SystemTime) -> HttpDate {
-        let dur = v.duration_since(UNIX_EPOCH)
+        let dur = v
+            .duration_since(UNIX_EPOCH)
             .expect("all times should be after the epoch");
         let secs_since_epoch = dur.as_secs();
 
-        if secs_since_epoch >= 253402300800 { // year 9999
+        if secs_since_epoch >= 253402300800 {
+            // year 9999
             panic!("date must be before year 9999");
         }
 
         /* 2000-03-01 (mod 400 year, immediately after feb29 */
         const LEAPOCH: i64 = 11017;
-        const DAYS_PER_400Y: i64 = 365*400 + 97;
-        const DAYS_PER_100Y: i64 = 365*100 + 24;
-        const DAYS_PER_4Y: i64 = 365*4 + 1;
+        const DAYS_PER_400Y: i64 = 365 * 400 + 97;
+        const DAYS_PER_100Y: i64 = 365 * 100 + 24;
+        const DAYS_PER_4Y: i64 = 365 * 4 + 1;
 
         let days = (secs_since_epoch / 86400) as i64 - LEAPOCH;
         let secs_of_day = secs_since_epoch % 86400;
@@ -65,21 +73,26 @@ impl From<SystemTime> for HttpDate {
         }
 
         let mut c_cycles = remdays / DAYS_PER_100Y;
-        if c_cycles == 4 { c_cycles -= 1; }
+        if c_cycles == 4 {
+            c_cycles -= 1;
+        }
         remdays -= c_cycles * DAYS_PER_100Y;
 
         let mut q_cycles = remdays / DAYS_PER_4Y;
-        if q_cycles == 25 { q_cycles -= 1; }
+        if q_cycles == 25 {
+            q_cycles -= 1;
+        }
         remdays -= q_cycles * DAYS_PER_4Y;
 
         let mut remyears = remdays / 365;
-        if remyears == 4 { remyears -= 1; }
+        if remyears == 4 {
+            remyears -= 1;
+        }
         remdays -= remyears * 365;
 
-        let mut year = 2000 +
-            remyears + 4*q_cycles + 100*c_cycles + 400*qc_cycles;
+        let mut year = 2000 + remyears + 4 * q_cycles + 100 * c_cycles + 400 * qc_cycles;
 
-        let months = [31,30,31,30,31,31,30,31,30,31,31,29];
+        let months = [31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 31, 29];
         let mut mon = 0;
         for mon_len in months.iter() {
             mon += 1;
@@ -88,7 +101,7 @@ impl From<SystemTime> for HttpDate {
             }
             remdays -= *mon_len;
         }
-        let mday = remdays+1;
+        let mday = remdays + 1;
         let mon = if mon + 2 > 12 {
             year += 1;
             mon - 10
@@ -96,7 +109,7 @@ impl From<SystemTime> for HttpDate {
             mon + 2
         };
 
-        let mut wday = (3+days)%7;
+        let mut wday = (3 + days) % 7;
         if wday <= 0 {
             wday += 7
         };
@@ -115,8 +128,8 @@ impl From<SystemTime> for HttpDate {
 
 impl From<HttpDate> for SystemTime {
     fn from(v: HttpDate) -> SystemTime {
-        let leap_years = ((v.year - 1) - 1968) / 4 - ((v.year - 1) - 1900) / 100 +
-                         ((v.year - 1) - 1600) / 400;
+        let leap_years =
+            ((v.year - 1) - 1968) / 4 - ((v.year - 1) - 1900) / 100 + ((v.year - 1) - 1600) / 400;
         let mut ydays = match v.mon {
             1 => 0,
             2 => 31,
@@ -131,13 +144,16 @@ impl From<HttpDate> for SystemTime {
             11 => 304,
             12 => 334,
             _ => unreachable!(),
-        } + v.day as u64 - 1;
+        } + v.day as u64
+            - 1;
         if is_leap_year(v.year) && v.mon > 2 {
             ydays += 1;
         }
         let days = (v.year as u64 - 1970) * 365 + leap_years as u64 + ydays;
-        UNIX_EPOCH +
-        Duration::from_secs(v.sec as u64 + v.min as u64 * 60 + v.hour as u64 * 3600 + days * 86400)
+        UNIX_EPOCH
+            + Duration::from_secs(
+                v.sec as u64 + v.min as u64 * 60 + v.hour as u64 * 3600 + days * 86400,
+            )
     }
 }
 
@@ -188,11 +204,9 @@ impl Display for HttpDate {
         };
         let mut buf: [u8; 29] = [
             // Too long to write as: b"Thu, 01 Jan 1970 00:00:00 GMT"
-            b' ', b' ', b' ', b',', b' ',
-            b'0', b'0', b' ', b' ', b' ', b' ', b' ',
-            b'0', b'0', b'0', b'0', b' ',
-            b'0', b'0', b':', b'0', b'0', b':', b'0', b'0',
-            b' ', b'G', b'M', b'T',
+            b' ', b' ', b' ', b',', b' ', b'0', b'0', b' ', b' ', b' ', b' ', b' ', b'0', b'0',
+            b'0', b'0', b' ', b'0', b'0', b':', b'0', b'0', b':', b'0', b'0', b' ', b'G', b'M',
+            b'T',
         ];
         buf[0] = wday[0];
         buf[1] = wday[1];
@@ -216,15 +230,15 @@ impl Display for HttpDate {
     }
 }
 
-impl PartialEq for HttpDate {
-    fn eq(&self, other: &HttpDate) -> bool {
-        SystemTime::from(*self) == SystemTime::from(*other)
+impl Ord for HttpDate {
+    fn cmp(&self, other: &HttpDate) -> cmp::Ordering {
+        SystemTime::from(*self).cmp(&SystemTime::from(*other))
     }
 }
 
 impl PartialOrd for HttpDate {
     fn partial_cmp(&self, other: &HttpDate) -> Option<cmp::Ordering> {
-        SystemTime::from(*self).partial_cmp(&SystemTime::from(*other))
+        Some(self.cmp(other))
     }
 }
 
@@ -324,8 +338,8 @@ fn parse_rfc850_date(s: &[u8]) -> Result<HttpDate, Error> {
             b"-Dec-" => 12,
             _ => return Err(Error(())),
         },
-        year: year,
-        wday: wday,
+        year,
+        wday,
     })
 }
 
@@ -340,12 +354,7 @@ fn parse_asctime(s: &[u8]) -> Result<HttpDate, Error> {
         hour: conv(&s[11..13]).parse()?,
         day: {
             let x = &s[8..10];
-            conv(if x[0] == b' ' {
-                    &x[1..2]
-                } else {
-                    x
-                })
-                .parse()?
+            conv(if x[0] == b' ' { &x[1..2] } else { x }).parse()?
         },
         mon: match &s[4..8] {
             b"Jan " => 1,
@@ -377,5 +386,5 @@ fn parse_asctime(s: &[u8]) -> Result<HttpDate, Error> {
 }
 
 fn is_leap_year(y: u16) -> bool {
-    y % 4 == 0 && (!(y % 100 == 0) || y % 400 == 0)
+    y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)
 }
