@@ -6,6 +6,5 @@ license = "MIT/Apache-2.0"
 description = "HTTP date parsing and formatting"
 keywords = ["http", "date", "time", "simple", "timestamp"]
 readme = "README.md"
-documentation = "https://pyfisch.github.io/httpdate/httpdate/index.html"
 repository = "https://github.com/pyfisch/httpdate"
 edition = "2018"
