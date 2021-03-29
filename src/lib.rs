@@ -23,26 +23,19 @@ use std::io;
 use std::num::ParseIntError;
 use std::time::SystemTime;
 
-pub use httpdate::HttpDate;
+pub use date::HttpDate;
 
-mod httpdate;
+mod date;
 
 /// An opaque error type for all parsing errors.
 #[derive(Debug)]
 pub struct Error(());
 
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        "string contains no or an invalid date"
-    }
-    fn cause(&self) -> Option<&error::Error> {
-        None
-    }
-}
+impl error::Error for Error {}
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
-        f.write_str(error::Error::description(self))
+        f.write_str("string contains no or an invalid date")
     }
 }
 

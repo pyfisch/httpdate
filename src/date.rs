@@ -1,11 +1,9 @@
-#[allow(unused_imports)]
-use std::ascii::AsciiExt;
 use std::fmt::{self, Display, Formatter};
 use std::cmp;
 use std::str::{FromStr, from_utf8_unchecked};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use Error;
+use crate::Error;
 
 /// HTTP timestamp type.
 ///

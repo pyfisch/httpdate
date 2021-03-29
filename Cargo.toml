@@ -1,6 +1,6 @@
 [package]
 name = "httpdate"
-version = "0.3.2"
+version = "1.0.0-alpha"
 authors = ["Pyfisch <pyfisch@gmail.com>"]
 license = "MIT/Apache-2.0"
 description = "HTTP date parsing and formatting"
@@ -8,6 +8,7 @@ keywords = ["http", "date", "time", "simple", "timestamp"]
 readme = "README.md"
 documentation = "https://pyfisch.github.io/httpdate/httpdate/index.html"
 repository = "https://github.com/pyfisch/httpdate"
+edition = "2018"
 
 [features]
 unstable = []
