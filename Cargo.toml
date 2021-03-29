@@ -9,6 +9,3 @@ readme = "README.md"
 documentation = "https://pyfisch.github.io/httpdate/httpdate/index.html"
 repository = "https://github.com/pyfisch/httpdate"
 edition = "2018"
-
-[features]
-unstable = []
