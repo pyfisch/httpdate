@@ -1,5 +1,6 @@
 use std::cmp;
 use std::fmt::{self, Display, Formatter};
+use std::num::ParseIntError;
 use std::str::{from_utf8_unchecked, FromStr};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -250,16 +251,19 @@ fn conv(s: &[u8]) -> &str {
     unsafe { from_utf8_unchecked(s) }
 }
 
+fn cvt_err(_: ParseIntError) -> Error {
+    Error(())
+}
 fn parse_imf_fixdate(s: &[u8]) -> Result<HttpDate, Error> {
     // Example: `Sun, 06 Nov 1994 08:49:37 GMT`
     if s.len() != 29 || &s[25..] != b" GMT" || s[16] != b' ' || s[19] != b':' || s[22] != b':' {
         return Err(Error(()));
     }
     Ok(HttpDate {
-        sec: conv(&s[23..25]).parse()?,
-        min: conv(&s[20..22]).parse()?,
-        hour: conv(&s[17..19]).parse()?,
-        day: conv(&s[5..7]).parse()?,
+        sec: conv(&s[23..25]).parse().map_err(cvt_err)?,
+        min: conv(&s[20..22]).parse().map_err(cvt_err)?,
+        hour: conv(&s[17..19]).parse().map_err(cvt_err)?,
+        day: conv(&s[5..7]).parse().map_err(cvt_err)?,
         mon: match &s[7..12] {
             b" Jan " => 1,
             b" Feb " => 2,
@@ -275,7 +279,7 @@ fn parse_imf_fixdate(s: &[u8]) -> Result<HttpDate, Error> {
             b" Dec " => 12,
             _ => return Err(Error(())),
         },
-        year: conv(&s[12..16]).parse()?,
+        year: conv(&s[12..16]).parse().map_err(cvt_err)?,
         wday: match &s[..5] {
             b"Mon, " => 1,
             b"Tue, " => 2,
@@ -312,17 +316,17 @@ fn parse_rfc850_date(s: &[u8]) -> Result<HttpDate, Error> {
     if s.len() != 22 || s[12] != b':' || s[15] != b':' || &s[18..22] != b" GMT" {
         return Err(Error(()));
     }
-    let mut year = conv(&s[7..9]).parse::<u16>()?;
+    let mut year = conv(&s[7..9]).parse::<u16>().map_err(cvt_err)?;
     if year < 70 {
         year += 2000;
     } else {
         year += 1900;
     }
     Ok(HttpDate {
-        sec: conv(&s[16..18]).parse()?,
-        min: conv(&s[13..15]).parse()?,
-        hour: conv(&s[10..12]).parse()?,
-        day: conv(&s[0..2]).parse()?,
+        sec: conv(&s[16..18]).parse().map_err(cvt_err)?,
+        min: conv(&s[13..15]).parse().map_err(cvt_err)?,
+        hour: conv(&s[10..12]).parse().map_err(cvt_err)?,
+        day: conv(&s[0..2]).parse().map_err(cvt_err)?,
         mon: match &s[2..7] {
             b"-Jan-" => 1,
             b"-Feb-" => 2,
@@ -349,12 +353,14 @@ fn parse_asctime(s: &[u8]) -> Result<HttpDate, Error> {
         return Err(Error(()));
     }
     Ok(HttpDate {
-        sec: conv(&s[17..19]).parse()?,
-        min: conv(&s[14..16]).parse()?,
-        hour: conv(&s[11..13]).parse()?,
+        sec: conv(&s[17..19]).parse().map_err(cvt_err)?,
+        min: conv(&s[14..16]).parse().map_err(cvt_err)?,
+        hour: conv(&s[11..13]).parse().map_err(cvt_err)?,
         day: {
             let x = &s[8..10];
-            conv(if x[0] == b' ' { &x[1..2] } else { x }).parse()?
+            conv(if x[0] == b' ' { &x[1..2] } else { x })
+                .parse()
+                .map_err(cvt_err)?
         },
         mon: match &s[4..8] {
             b"Jan " => 1,
@@ -371,7 +377,7 @@ fn parse_asctime(s: &[u8]) -> Result<HttpDate, Error> {
             b"Dec " => 12,
             _ => return Err(Error(())),
         },
-        year: conv(&s[20..24]).parse()?,
+        year: conv(&s[20..24]).parse().map_err(cvt_err)?,
         wday: match &s[0..4] {
             b"Mon " => 1,
             b"Tue " => 2,

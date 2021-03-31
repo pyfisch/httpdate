@@ -20,7 +20,6 @@
 use std::error;
 use std::fmt::{self, Display, Formatter};
 use std::io;
-use std::num::ParseIntError;
 use std::time::SystemTime;
 
 pub use date::HttpDate;
@@ -36,12 +35,6 @@ impl error::Error for Error {}
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
         f.write_str("string contains no or an invalid date")
-    }
-}
-
-impl From<ParseIntError> for Error {
-    fn from(_: ParseIntError) -> Error {
-        Error(())
     }
 }
 
