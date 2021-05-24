@@ -41,6 +41,7 @@ impl HttpDate {
             && self.mon <= 12
             && self.year >= 1970
             && self.year <= 9999
+            && &HttpDate::from(SystemTime::from(*self)) == self
     }
 }
 

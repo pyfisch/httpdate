@@ -63,7 +63,7 @@ pub fn fmt_http_date(d: SystemTime) -> String {
 #[cfg(test)]
 mod tests {
     use std::str;
-    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    use std::time::{Duration, UNIX_EPOCH};
 
     use super::{fmt_http_date, parse_http_date, HttpDate};
 
@@ -151,12 +151,9 @@ mod tests {
     }
 
     #[test]
-    fn test_date_equality() {
-        let nov_07_sys = UNIX_EPOCH + Duration::new(784198117, 0);
-        let nov_07 = nov_07_sys.into();
-        let parsed = "Sun, 07 Nov 1994 08:48:37 GMT".parse::<HttpDate>().unwrap();
-        let parsed_sys: SystemTime = parsed.into();
-        assert_eq!(parsed_sys, nov_07_sys);
-        assert_eq!(parsed, nov_07);
+    fn test_parse_bad_date() {
+        // 1994-11-07 is actually a Monday
+        let parsed = "Sun, 07 Nov 1994 08:48:37 GMT".parse::<HttpDate>();
+        assert!(parsed.is_err())
     }
 }
