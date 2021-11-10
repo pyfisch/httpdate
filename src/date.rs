@@ -1,6 +1,6 @@
 use std::cmp;
 use std::fmt::{self, Display, Formatter};
-use std::str::{from_utf8_unchecked, FromStr};
+use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::Error;
@@ -188,6 +188,7 @@ impl Display for HttpDate {
             7 => b"Sun",
             _ => unreachable!(),
         };
+
         let mon = match self.mon {
             1 => b"Jan",
             2 => b"Feb",
@@ -203,12 +204,8 @@ impl Display for HttpDate {
             12 => b"Dec",
             _ => unreachable!(),
         };
-        let mut buf: [u8; 29] = [
-            // Too long to write as: b"Thu, 01 Jan 1970 00:00:00 GMT"
-            b' ', b' ', b' ', b',', b' ', b'0', b'0', b' ', b' ', b' ', b' ', b' ', b'0', b'0',
-            b'0', b'0', b' ', b'0', b'0', b':', b'0', b'0', b':', b'0', b'0', b' ', b'G', b'M',
-            b'T',
-        ];
+
+        let mut buf: [u8; 29] = *b"   , 00     0000 00:00:00 GMT";
         buf[0] = wday[0];
         buf[1] = wday[1];
         buf[2] = wday[2];
@@ -227,7 +224,7 @@ impl Display for HttpDate {
         buf[21] = b'0' + (self.min % 10) as u8;
         buf[23] = b'0' + (self.sec / 10) as u8;
         buf[24] = b'0' + (self.sec % 10) as u8;
-        f.write_str(unsafe { from_utf8_unchecked(&buf[..]) })
+        f.write_str(std::str::from_utf8(&buf[..]).unwrap())
     }
 }
 
