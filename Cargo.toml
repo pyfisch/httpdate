@@ -8,3 +8,10 @@ keywords = ["http", "date", "time", "simple", "timestamp"]
 readme = "README.md"
 repository = "https://github.com/pyfisch/httpdate"
 edition = "2018"
+
+[dev-dependencies]
+criterion = "0.3.5"
+
+[[bench]]
+name = "benchmarks"
+harness = false
