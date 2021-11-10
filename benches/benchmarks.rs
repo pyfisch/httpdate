@@ -27,12 +27,22 @@ pub fn parse_asctime(c: &mut Criterion) {
     });
 }
 
+struct BlackBoxWrite;
+
+impl std::fmt::Write for BlackBoxWrite {
+    fn write_str(&mut self, s: &str) -> Result<(), std::fmt::Error> {
+        black_box(s);
+        Ok(())
+    }
+}
+
 pub fn encode_date(c: &mut Criterion) {
     c.bench_function("encode_date", |b| {
         let d = "Wed, 21 Oct 2015 07:28:00 GMT";
         black_box(httpdate::parse_http_date(d)).unwrap();
         b.iter(|| {
-            black_box(format!("{}", black_box(d)));
+            use std::fmt::Write;
+            let _ = write!(BlackBoxWrite, "{}", d);
         })
     });
 }
