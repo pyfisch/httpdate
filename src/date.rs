@@ -240,6 +240,15 @@ impl PartialOrd for HttpDate {
     }
 }
 
+fn toint_1(x: u8) -> Result<u8, Error> {
+    let result = x.wrapping_sub(b'0');
+    if result < 10 {
+        Ok(result)
+    } else {
+        Err(Error(()))
+    }
+}
+
 fn toint_2(s: &[u8]) -> Result<u8, Error> {
     let high = s[0].wrapping_sub(b'0');
     let low = s[1].wrapping_sub(b'0');
@@ -355,15 +364,6 @@ fn parse_rfc850_date(s: &[u8]) -> Result<HttpDate, Error> {
         year,
         wday,
     })
-}
-
-fn toint_1(x: u8) -> Result<u8, Error> {
-    let result = x.wrapping_sub(b'0');
-    if result < 10 {
-        Ok(result)
-    } else {
-        Err(Error(()))
-    }
 }
 
 fn parse_asctime(s: &[u8]) -> Result<HttpDate, Error> {
