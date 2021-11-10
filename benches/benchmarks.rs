@@ -9,5 +9,15 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, criterion_benchmark);
+pub fn encode_date(c: &mut Criterion) {
+    c.bench_function("encode_date", |b| {
+        let d = "Wed, 21 Oct 2015 07:28:00 GMT";
+        black_box(httpdate::parse_http_date(d)).unwrap();
+        b.iter(|| {
+            black_box(format!("{}", black_box(d)));
+        })
+    });
+}
+
+criterion_group!(benches, criterion_benchmark, encode_date);
 criterion_main!(benches);
