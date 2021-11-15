@@ -260,12 +260,13 @@ fn toint_2(s: &[u8]) -> Result<u8, Error> {
     }
 }
 
+#[allow(clippy::many_single_char_names)]
 fn toint_4(s: &[u8]) -> Result<u16, Error> {
     let a = u16::from(s[0].wrapping_sub(b'0'));
     let b = u16::from(s[1].wrapping_sub(b'0'));
     let c = u16::from(s[2].wrapping_sub(b'0'));
     let d = u16::from(s[3].wrapping_sub(b'0'));
-    
+
     if a < 10 && b < 10 && c < 10 && d < 10 {
         Ok(a * 1000 + b * 100 + c * 10 + d)
     } else {
@@ -377,7 +378,13 @@ fn parse_asctime(s: &[u8]) -> Result<HttpDate, Error> {
         hour: toint_2(&s[11..13])?,
         day: {
             let x = &s[8..10];
-            {if x[0] == b' ' { toint_1(x[1]) } else { toint_2(x) }}?
+            {
+                if x[0] == b' ' {
+                    toint_1(x[1])
+                } else {
+                    toint_2(x)
+                }
+            }?
         },
         mon: match &s[4..8] {
             b"Jan " => 1,
