@@ -1,4 +1,4 @@
-use criterion::{black_box, Criterion, criterion_group, criterion_main};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 pub fn parse_imf_fixdate(c: &mut Criterion) {
     c.bench_function("parse_imf_fixdate", |b| {
@@ -47,5 +47,11 @@ pub fn encode_date(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, parse_imf_fixdate, parse_rfc850_date, parse_asctime, encode_date);
+criterion_group!(
+    benches,
+    parse_imf_fixdate,
+    parse_rfc850_date,
+    parse_asctime,
+    encode_date
+);
 criterion_main!(benches);
