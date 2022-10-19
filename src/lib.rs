@@ -157,4 +157,10 @@ mod tests {
         let parsed = "Sun, 07 Nov 1994 08:48:37 GMT".parse::<HttpDate>();
         assert!(parsed.is_err())
     }
+
+    #[test]
+    fn test_from_secs_since_epoch() {
+        let ts = 1666206668;
+        assert_eq!(HttpDate::from_secs_since_epoch(ts).to_string(), "Wed, 19 Oct 2022 19:11:08 GMT");
+    }
 }

@@ -42,15 +42,7 @@ impl HttpDate {
             && self.year <= 9999
             && &HttpDate::from(SystemTime::from(*self)) == self
     }
-}
-
-impl From<SystemTime> for HttpDate {
-    fn from(v: SystemTime) -> HttpDate {
-        let dur = v
-            .duration_since(UNIX_EPOCH)
-            .expect("all times should be after the epoch");
-        let secs_since_epoch = dur.as_secs();
-
+    pub fn from_secs_since_epoch(secs_since_epoch: u64) -> Self {
         if secs_since_epoch >= 253402300800 {
             // year 9999
             panic!("date must be before year 9999");
@@ -124,6 +116,16 @@ impl From<SystemTime> for HttpDate {
             year: year as u16,
             wday: wday as u8,
         }
+    }
+}
+
+impl From<SystemTime> for HttpDate {
+    fn from(v: SystemTime) -> HttpDate {
+        let dur = v
+            .duration_since(UNIX_EPOCH)
+            .expect("all times should be after the epoch");
+        let secs_since_epoch = dur.as_secs();
+        Self::from_secs_since_epoch(secs_since_epoch)
     }
 }
 
