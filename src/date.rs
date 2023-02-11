@@ -1,4 +1,5 @@
 use std::cmp;
+use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -162,17 +163,50 @@ impl FromStr for HttpDate {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<HttpDate, Error> {
-        if !s.is_ascii() {
-            return Err(Error(()));
-        }
-        let x = s.trim().as_bytes();
-        let date = parse_imf_fixdate(x)
-            .or_else(|_| parse_rfc850_date(x))
-            .or_else(|_| parse_asctime(x))?;
-        if !date.is_valid() {
-            return Err(Error(()));
-        }
-        Ok(date)
+        Self::try_from(s.as_bytes())
+    }
+}
+
+impl<'a> TryFrom<&'a [u8]> for HttpDate {
+    type Error = Error;
+
+    fn try_from(value: &[u8]) -> Result<Self, Error> {
+        let value = trim_ascii(value);
+        Err(Error(()))
+            .or_else(|_| parse_imf_fixdate(value))
+            .or_else(|_| parse_rfc850_date(value))
+            .or_else(|_| parse_asctime(value))
+            .ok()
+            .filter(HttpDate::is_valid)
+            .ok_or(Error(()))
+    }
+}
+
+/// Returns a byte slice with leading and trailing ASCII whitespace bytes
+/// removed.
+///
+/// 'Whitespace' refers to the definition used by `u8::is_ascii_whitespace`.
+///
+/// This is a polyfill of [`[u8]::trim_ascii`] which is currently a nightly
+/// feature.
+fn trim_ascii(mut value: &[u8]) -> &[u8] {
+    let count = value
+        .iter()
+        .take_while(|ch| ch.is_ascii_whitespace())
+        .count();
+    value = &value[count..];
+    let count = value
+        .iter()
+        .rev()
+        .take_while(|ch| ch.is_ascii_whitespace())
+        .count();
+    &value[..value.len() - count]
+}
+
+#[test]
+fn test_trim_ascii() {
+    for (want, value) in [("hello world", "\r hello world\n "), ("", "  "), ("", "")] {
+        assert_eq!(want.as_bytes(), trim_ascii(value.as_bytes()));
     }
 }
 
