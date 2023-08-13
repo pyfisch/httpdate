@@ -1,6 +1,6 @@
 # Date and time utils for HTTP.
 
-[![Build Status](https://travis-ci.org/pyfisch/httpdate.svg?branch=master)](https://travis-ci.org/pyfisch/httpdate)
+[![Build Status](https://github.com/pyfisch/httpdate/actions/workflows/ci.yml/badge.svg)](https://github.com/pyfisch/httpdate/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/httpdate.svg)](https://crates.io/crates/httpdate)
 [![Documentation](https://docs.rs/httpdate/badge.svg)](https://docs.rs/httpdate)
 
