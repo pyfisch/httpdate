@@ -1,7 +1,7 @@
 use std::cmp;
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::Error;
 
@@ -35,12 +35,12 @@ impl HttpDate {
             && self.min < 60
             && self.hour < 24
             && self.day > 0
-            && self.day < 32
             && self.mon > 0
             && self.mon <= 12
             && self.year >= 1970
             && self.year <= 9999
-            && &HttpDate::from(SystemTime::from(*self)) == self
+            && self.day <= datealgo::days_in_month(self.year as i32, self.mon)
+            && self.wday == datealgo::date_to_weekday((self.year as i32, self.mon, self.day))
     }
 }
 
@@ -56,105 +56,31 @@ impl From<SystemTime> for HttpDate {
             panic!("date must be before year 9999");
         }
 
-        /* 2000-03-01 (mod 400 year, immediately after feb29 */
-        const LEAPOCH: i64 = 11017;
-        const DAYS_PER_400Y: i64 = 365 * 400 + 97;
-        const DAYS_PER_100Y: i64 = 365 * 100 + 24;
-        const DAYS_PER_4Y: i64 = 365 * 4 + 1;
-
-        let days = (secs_since_epoch / 86400) as i64 - LEAPOCH;
-        let secs_of_day = secs_since_epoch % 86400;
-
-        let mut qc_cycles = days / DAYS_PER_400Y;
-        let mut remdays = days % DAYS_PER_400Y;
-
-        if remdays < 0 {
-            remdays += DAYS_PER_400Y;
-            qc_cycles -= 1;
-        }
-
-        let mut c_cycles = remdays / DAYS_PER_100Y;
-        if c_cycles == 4 {
-            c_cycles -= 1;
-        }
-        remdays -= c_cycles * DAYS_PER_100Y;
-
-        let mut q_cycles = remdays / DAYS_PER_4Y;
-        if q_cycles == 25 {
-            q_cycles -= 1;
-        }
-        remdays -= q_cycles * DAYS_PER_4Y;
-
-        let mut remyears = remdays / 365;
-        if remyears == 4 {
-            remyears -= 1;
-        }
-        remdays -= remyears * 365;
-
-        let mut year = 2000 + remyears + 4 * q_cycles + 100 * c_cycles + 400 * qc_cycles;
-
-        let months = [31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 31, 29];
-        let mut mon = 0;
-        for mon_len in months.iter() {
-            mon += 1;
-            if remdays < *mon_len {
-                break;
-            }
-            remdays -= *mon_len;
-        }
-        let mday = remdays + 1;
-        let mon = if mon + 2 > 12 {
-            year += 1;
-            mon - 10
-        } else {
-            mon + 2
-        };
-
-        let mut wday = (3 + days) % 7;
-        if wday <= 0 {
-            wday += 7
-        };
-
+        let (year, mon, day, hour, min, sec, _) = datealgo::systemtime_to_datetime(v).unwrap();
+        let wday = datealgo::date_to_weekday((year, mon, day));
         HttpDate {
-            sec: (secs_of_day % 60) as u8,
-            min: ((secs_of_day % 3600) / 60) as u8,
-            hour: (secs_of_day / 3600) as u8,
-            day: mday as u8,
-            mon: mon as u8,
+            sec,
+            min,
+            hour,
+            day,
+            mon,
             year: year as u16,
-            wday: wday as u8,
+            wday,
         }
     }
 }
 
 impl From<HttpDate> for SystemTime {
     fn from(v: HttpDate) -> SystemTime {
-        let leap_years =
-            ((v.year - 1) - 1968) / 4 - ((v.year - 1) - 1900) / 100 + ((v.year - 1) - 1600) / 400;
-        let mut ydays = match v.mon {
-            1 => 0,
-            2 => 31,
-            3 => 59,
-            4 => 90,
-            5 => 120,
-            6 => 151,
-            7 => 181,
-            8 => 212,
-            9 => 243,
-            10 => 273,
-            11 => 304,
-            12 => 334,
-            _ => unreachable!(),
-        } + v.day as u64
-            - 1;
-        if is_leap_year(v.year) && v.mon > 2 {
-            ydays += 1;
-        }
-        let days = (v.year as u64 - 1970) * 365 + leap_years as u64 + ydays;
-        UNIX_EPOCH
-            + Duration::from_secs(
-                v.sec as u64 + v.min as u64 * 60 + v.hour as u64 * 3600 + days * 86400,
-            )
+        datealgo::datetime_to_systemtime((
+            v.year as i32,
+            v.mon,
+            v.day,
+            v.hour,
+            v.min,
+            v.sec,
+            0
+        )).expect("datetime not representable as SystemTime")
     }
 }
 
@@ -413,8 +339,4 @@ fn parse_asctime(s: &[u8]) -> Result<HttpDate, Error> {
             _ => return Err(Error(())),
         },
     })
-}
-
-fn is_leap_year(y: u16) -> bool {
-    y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)
 }

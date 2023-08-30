@@ -16,3 +16,6 @@ criterion = "0.5"
 [[bench]]
 name = "benchmarks"
 harness = false
+
+[dependencies]
+datealgo = "0.1.0"
