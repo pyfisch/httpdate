@@ -38,11 +38,13 @@ impl std::fmt::Write for BlackBoxWrite {
 
 pub fn encode_date(c: &mut Criterion) {
     c.bench_function("encode_date", |b| {
-        let d = "Wed, 21 Oct 2015 07:28:00 GMT";
-        black_box(httpdate::parse_http_date(d)).unwrap();
+        let d = "Wed, 21 Oct 2015 07:28:00 GMT"
+            .parse::<httpdate::HttpDate>()
+            .unwrap();
+
         b.iter(|| {
             use std::fmt::Write;
-            let _ = write!(BlackBoxWrite, "{}", d);
+            let _ = write!(BlackBoxWrite, "{}", black_box(d));
         })
     });
 }
