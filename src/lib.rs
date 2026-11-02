@@ -83,6 +83,17 @@ mod tests {
     }
 
     #[test]
+    fn test_rfc850_requires_space_before_time() {
+        assert!(parse_http_date("Sunday, 06-Nov-94 08:49:37 GMT").is_ok());
+
+        for separator in ["X", "\t", "0"] {
+            let date = format!("Sunday, 06-Nov-94{}08:49:37 GMT", separator);
+
+            assert!(parse_http_date(&date).is_err(), "accepted {:?}", date);
+        }
+    }
+
+    #[test]
     fn test2() {
         let d = UNIX_EPOCH + Duration::from_secs(1475419451);
         assert_eq!(

@@ -333,7 +333,7 @@ fn parse_rfc850_date(s: &[u8]) -> Result<HttpDate, Error> {
         .or_else(|| wday(s, 6, b"Saturday, "))
         .or_else(|| wday(s, 7, b"Sunday, "))
         .ok_or(Error(()))?;
-    if s.len() != 22 || s[12] != b':' || s[15] != b':' || &s[18..22] != b" GMT" {
+    if s.len() != 22 || s[9] != b' ' || s[12] != b':' || s[15] != b':' || &s[18..22] != b" GMT" {
         return Err(Error(()));
     }
     let mut year = u16::from(toint_2(&s[7..9])?);
